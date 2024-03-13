@@ -8,10 +8,14 @@ import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.RadioButton
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import com.example.androidmvvmcleancodeproject.R
+import com.example.androidmvvmcleancodeproject.data.model.Content
 import com.example.androidmvvmcleancodeproject.databinding.FragmentSurveyQuestionBinding
+import com.example.androidmvvmcleancodeproject.ui.utils.Helpers.toast
+import com.example.androidmvvmcleancodeproject.ui.utils.NetworkResult
 import com.example.androidmvvmcleancodeproject.ui.viewmodel.ContentQuestionViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -38,56 +42,85 @@ class SurveyQuestionFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         model.getRemoteContentQuestions()
+
         binding.btnSubmit.setOnClickListener {
-            model.calculateMarks()
+            model.calculateMarksAndupdateQuestionContent()
         }
-        model.contentQuestion.observe(viewLifecycleOwner) {
-            for (contentQuestions in it.content) {
-                val textView = TextView(requireContext())
-                textView.text = contentQuestions.survey.surveyName
-                binding.container.addView(textView)
+        bindObserver()
+    }
+    private fun bindObserver() {
+        model.contentResponseLiveData.observe(viewLifecycleOwner) {
+            binding.progressBar.isVisible = false
+            when (it) {
+                is NetworkResult.Success -> {
+                    it.data?.content?.let { it1 -> createUI(it1) }
+                }
 
-                var selectedRadioButton: RadioButton? =
-                    null  // Variable to keep track of the selected RadioButton
+                is NetworkResult.Error -> {
+                    requireActivity().toast("" + it.message)
+                }
 
-                for (question in contentQuestions.survey.surveyQuestions) {
-                    val questionTextView = TextView(requireContext())
-                    questionTextView.text = question.questions
-                    binding.container.addView(questionTextView)
+                is NetworkResult.Loading -> {
+                    binding.progressBar.isVisible = true
+                }
+            }
+        }
 
-                    if (question.isMultiChoice) {
-                        question.answers.forEach { options ->
-                            val checkBox = CheckBox(requireContext())
-                            checkBox.text = options.optionText
-                            checkBox.id = options.answerId.toInt()
-                            checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
-                                if (isChecked) {
-                                    options.optionSelected = 1
-                                } else {
-                                    options.optionSelected = 0
-                                }
+        model.updateRequestLiveData.observe(viewLifecycleOwner){
+            requireActivity().toast("survey ID: ${it.surveyId} Total Marks: ${it.mark}")
+        }
+    }
+
+    fun createUI(content: List<Content>) {
+        for (contentQuestions in content) {
+            val textView = TextView(requireContext())
+            textView.text = contentQuestions.survey.surveyName
+            textView.setPadding(16, 16, 16, 16)
+            binding.container.addView(textView)
+
+            var selectedRadioButton: RadioButton? = null  // Variable to keep track of the selected RadioButton
+
+            for (question in contentQuestions.survey.surveyQuestions) {
+                val questionTextView = TextView(requireContext())
+                questionTextView.text = question.questions
+                questionTextView.setPadding(16, 16, 16, 16)
+                binding.container.addView(questionTextView)
+
+                if (question.isMultiChoice) {
+                    question.answers.forEach { options ->
+                        val checkBox = CheckBox(requireContext())
+                        checkBox.text = options.optionText
+                        checkBox.id = options.answerId.toInt()
+                        checkBox.setOnCheckedChangeListener { buttonView, isChecked ->
+                            if (isChecked) {
+                                options.optionSelected = 1
+                            } else {
+                                options.optionSelected = 0
                             }
-                            binding.container.addView(checkBox)
                         }
-                    } else {
-                        question.answers.forEach { options ->
-                            var radioButton = RadioButton(requireContext())
-                            radioButton.text = options.optionText
-                            radioButton.id = options.answerId.toInt()
-                            radioButton.setOnCheckedChangeListener { buttonView, isChecked ->
-                                if (isChecked) {
-                                    options.optionSelected = 1
-                                    selectedRadioButton?.isChecked = false
-                                    selectedRadioButton = buttonView as RadioButton
-                                } else {
-                                    options.optionSelected = 0
-                                }
+                        checkBox.setPadding(16, 16, 16, 16)
+                        binding.container.addView(checkBox)
+                    }
+                } else {
+                    question.answers.forEach { options ->
+                        val radioButton = RadioButton(requireContext())
+                        radioButton.text = options.optionText
+                        radioButton.id = options.answerId.toInt()
+                        radioButton.setOnCheckedChangeListener { buttonView, isChecked ->
+                            if (isChecked) {
+                                options.optionSelected = 1
+                                selectedRadioButton?.isChecked = false
+                                selectedRadioButton = buttonView as RadioButton
+                            } else {
+                                options.optionSelected = 0
                             }
-                            binding.container.addView(radioButton)
                         }
+                        radioButton.setPadding(16, 16, 16, 16)
+                        binding.container.addView(radioButton)
                     }
                 }
             }
         }
+
     }
 }

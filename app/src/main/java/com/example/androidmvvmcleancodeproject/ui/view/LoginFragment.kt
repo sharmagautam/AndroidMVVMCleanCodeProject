@@ -13,13 +13,18 @@ import com.example.androidmvvmcleancodeproject.R
 import com.example.androidmvvmcleancodeproject.databinding.FragmentLoginBinding
 import com.example.androidmvvmcleancodeproject.ui.utils.Helpers.toast
 import com.example.androidmvvmcleancodeproject.ui.utils.NetworkResult
+import com.example.androidmvvmcleancodeproject.ui.utils.TokenManager
 import com.example.androidmvvmcleancodeproject.ui.viewmodel.LoginViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
     private lateinit var model: LoginViewModel
     private var binding: FragmentLoginBinding? = null
+
+    @Inject
+    lateinit var tokenManager: TokenManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,7 +42,6 @@ class LoginFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        bindObserver()
         binding?.buttonLogIn?.setOnClickListener {
             val email = binding?.editTextEmail?.text.toString().trim()
             val password = binding?.editTextPassword?.text.toString().trim()
@@ -48,16 +52,17 @@ class LoginFragment : Fragment() {
                 requireActivity().toast("Invalid email or password")
             }
         }
+        bindObserver()
     }
 
     private fun bindObserver() {
-        model.loginData.observe(viewLifecycleOwner) {
+        model.userResponseLiveData.observe(viewLifecycleOwner) {
             binding?.progressBar?.isVisible = false
             when (it) {
                 is NetworkResult.Success -> {
+                    it.data?.token?.let { it1 -> tokenManager.saveToken(it1) }
                     findNavController().navigate(
-                        R.id.action_loginFragment_to_surveyQuestionFragment,
-                        null
+                        R.id.action_loginFragment_to_surveyQuestionFragment
                     )
                 }
 
